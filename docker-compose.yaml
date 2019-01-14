@@ -1,0 +1,68 @@
+version: '3'
+networks:
+  fib_sample:
+services:
+  nginx:
+    restart: 'always'
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx
+    ports:
+      - 3000:80
+    networks:
+      - fib_sample
+  postgres:
+    image: 'postgres:latest'
+    networks:
+      - fib_sample
+  redis:
+    image: 'redis:latest'
+    networks:
+      - fib_sample
+  api:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server
+    volumes:
+      - /app/node_modules
+      - ./server:/app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres_pswd
+      - PGPORT=5432
+    networks:
+      - fib_sample
+    depends_on:
+      - redis
+      - postgres
+
+  client:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+    networks:
+      - fib_sample
+  
+  worker:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - /app/node_modules
+      - ./worker:/app
+    networks:
+      - fib_sample
+    depends_on:
+      - redis
+      - postgres
+  
