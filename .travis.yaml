@@ -1,0 +1,38 @@
+sudo: required
+services:
+  - docker
+env:
+  global:
+    #versin id
+    - SHA=$(git rev-parse HEAD)
+    #stops gcloud from waiting for user input ex y/n
+    - CLOUDSDK_CORE_DISABLE_PROMPTS=1
+before_install:
+# decrypt file with account configuration, value from travis -encrypt-file ex.
+#  - openssl aes-256-cbc -K $encrypted_0c35eebf403c_key -iv $encrypted_0c35eebf403c_iv -in service-account.json.enc -out service-account.json -d
+# install sdk
+  - curl https://sdk.cloud.google.com | bash > /dev/null;
+# source file with config
+  - source $HOME/google-cloud-sdk/path.bash.inc
+# install kubectl
+  - gcloud components update kubectl
+# authenticate using decrypted file sample:
+# - gcloud auth activate-service-account --key-file service-account.json
+# gc project set, sample id - skilful-berm-214822
+  - gcloud config set project skilful-berm-214822
+# set  zone bcouse kubernetes cluster is zonal in example
+  - gcloud config set compute/zone us-central1-a
+# work specifically with cluster created inside the project ex multi-cluster
+  - gcloud container clusters get-credentials multi-cluster
+# login to docker cli with travis env-variables
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - docker build -t bjowczarek/react-test -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run bjowczarek/react-test npm test -- --coverage
+
+deploy:
+  provider: script
+  script: bash ./deploy.sh
+  on:
+    branch: master
